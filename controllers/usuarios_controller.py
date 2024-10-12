@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.usuarios import UsuariosCreate, UsuariosResponse
 from models.usuarios import Usuarios
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -67,3 +68,22 @@ def eliminar_usuario(usuario_id: int, db: Session = Depends(get_db)):
     db.delete(usuario_db)
     db.commit()
     return {"detail": "Usuario eliminado"}
+
+
+class Credenciales(BaseModel):
+    nombre: str
+    contraseña: str
+
+
+# Verificar nombre y contraseña
+@router.post("/usuarios/validar", tags=["Usuarios"])
+def validar_usuario(credenciales: Credenciales, db: Session = Depends(get_db)):
+    usuario = db.query(Usuarios).filter(
+        Usuarios.nombre == credenciales.nombre,
+        Usuarios.contraseña == credenciales.contraseña
+    ).first()
+
+    if usuario:
+        return {"detail": "Credenciales válidas"}
+    else:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
