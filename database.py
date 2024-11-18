@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = 'postgresql://ruatas_back_user:HapjBbI6jGWqvkTB1xaAu0EjKkAAnakR@dpg-cs64kgqj1k6c739vv6v0-a.oregon-postgres.render.com:5432/ruatas_back'
+DATABASE_URL = 'postgresql://rutas_gppr_user:0V43gOHLxybEeV7wpK3RtbxVM3W0vfhR@dpg-csq0ahl2ng1s7397ptvg-a.oregon-postgres.render.com/rutas_gppr'
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

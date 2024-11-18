@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.historial_rutas import HistorialRutasCreate, HistorialRutasResponse, HistorialRutas
+from models.trufis import Trufi
 import math
+from geopy.distance import geodesic
+from typing import Tuple, List
 
 router = APIRouter()
 
@@ -44,11 +47,78 @@ def crear_historial(historial: HistorialRutasCreate, db: Session = Depends(get_d
 
     # Excluimos 'distanciakm' al crear el nuevo historial
     nuevo_historial = HistorialRutas(**{**historial.dict(), "distanciakm": total_distancia})
-
+    print(historial)
+    print(total_distancia)
     db.add(nuevo_historial)
     db.commit()
     db.refresh(nuevo_historial)
     return nuevo_historial
+
+
+# Función para calcular la distancia entre dos puntos
+def calcular_distancia(punto1: Tuple[float, float], punto2: Tuple[float, float]) -> float:
+    return geodesic(punto1, punto2).meters
+
+
+
+# Ruta para obtener la ruta real con la tolerancia calculada
+@router.post("/ruta_con_tolerancia", response_model=HistorialRutasResponse, tags=["Ruta Real con Tolerancia"])
+def calcular_ruta_con_tolerancia(historial: HistorialRutasCreate, db: Session = Depends(get_db)):
+    margen_tolerancia = 10
+    # Verificar si el medio_usado existe en los nombres de los trufis
+    trufi = db.query(Trufi).filter(Trufi.nombre == historial.medio_usado).first()
+    if not trufi:
+        coordenadas = historial.camino  # Asumimos que es una lista de cadenas "lat,lng"
+
+        total_distancia = 0.0
+        for i in range(len(coordenadas) - 1):
+            lat1, lon1 = map(float, coordenadas[i].split(","))
+            lat2, lon2 = map(float, coordenadas[i + 1].split(","))
+            total_distancia += haversine((lat1, lon1), (lat2, lon2))
+
+        # Excluimos 'distanciakm' al crear el nuevo historial
+        nuevo_historial = HistorialRutas(**{**historial.dict(), "distanciakm": total_distancia})
+        print(historial)
+        print(total_distancia)
+        db.add(nuevo_historial)
+        db.commit()
+        db.refresh(nuevo_historial)
+        return nuevo_historial
+
+    # Obtener las rutas de la base de datos
+    ruta_ideal = trufi.ruta
+    ruta_real = historial.camino
+
+    if not ruta_ideal or not ruta_real:
+        return []  # Si no se encuentran rutas, retornar lista vacía
+
+    # Lista para almacenar las coordenadas con el valor de tolerancia
+    ruta_real_con_tolerancia = []
+
+    # Procesar cada punto de la ruta real
+    total_distancia = 0.0
+    for i in range(len(ruta_real) - 1):
+        lat, lon = map(float, ruta_real[i].split(","))
+        lat2, lon2 = map(float, ruta_real[i + 1].split(","))
+        # Encontrar la distancia mínima a cualquier punto de la ruta ideal
+        distancias = [calcular_distancia((lat, lon), punto_ideal) for punto_ideal in ruta_ideal]
+        distancia_minima = min(distancias)
+
+        # Determinar si está dentro o fuera del margen de tolerancia
+        dentro_tolerancia = 0 if distancia_minima <= margen_tolerancia else 1
+
+        # Agregar el punto con su valor de tolerancia
+        total_distancia += haversine((lat, lon), (lat2, lon2))
+        ruta_real_con_tolerancia.append(
+            f"{lat}, {lon}, {dentro_tolerancia}")
+    historial.camino = ruta_real_con_tolerancia
+    db_historial = HistorialRutas(**{**historial.dict(), "distanciakm": total_distancia})
+
+    db.add(db_historial)
+    db.commit()
+    db.refresh(db_historial)
+    # Devolver la ruta con el tercer valor indicando dentro o fuera del margen de tolerancia
+    return db_historial
 
 
 # Listar todos los historiales de rutas

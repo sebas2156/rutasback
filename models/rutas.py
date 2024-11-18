@@ -15,6 +15,9 @@ class Rutas(Base):
     duracion_estimada_minutos = Column(Integer, default=None)
     fecha_creacion = Column(String, nullable=False)
     medio_esperado = Column(String, nullable=False)
+    dias = Column(String, nullable=False)
+    nombre = Column(String, nullable=False)
+    hora = Column(String)
 
 
 # Modelos de Pydantic
@@ -25,6 +28,9 @@ class RutasBase(BaseModel):
     duracion_estimada_minutos: int
     fecha_creacion: str
     medio_esperado: str
+    dias: str
+    nombre: str
+    hora: str
 
 
 class RutasCreate(RutasBase):
