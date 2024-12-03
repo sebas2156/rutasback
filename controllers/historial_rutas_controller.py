@@ -109,8 +109,20 @@ def calcular_ruta_con_tolerancia(historial: HistorialRutasCreate, db: Session = 
 
         # Agregar el punto con su valor de tolerancia
         total_distancia += haversine((lat, lon), (lat2, lon2))
+        lentitud = 0
+        if i == 0:
+            total_distancia_anterior = total_distancia
+
+        if i > 2:
+            if (total_distancia - total_distancia_anterior) < 0.4:
+                lentitud = 1
+            if (total_distancia - total_distancia_anterior) < 1:
+                lentitud = 2
+            if (total_distancia - total_distancia_anterior) < 1.5:
+                lentitud = 3
+            total_distancia_anterior = total_distancia
         ruta_real_con_tolerancia.append(
-            f"{lat}, {lon}, {dentro_tolerancia}")
+            f"{lat}, {lon}, {dentro_tolerancia}, {lentitud}")
     historial.camino = ruta_real_con_tolerancia
     db_historial = HistorialRutas(**{**historial.dict(), "distanciakm": total_distancia})
 
